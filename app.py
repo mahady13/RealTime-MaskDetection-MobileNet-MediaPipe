@@ -57,3 +57,18 @@ with st.sidebar:
         **🔹 Partial Occlusion**  
         Hands,glasses or hair partially covering the face can affect confidence scores.
         """)
+#app ui started
+st.title("😷 Real-Time AI Face Mask Detection")
+st.caption("Computer Vision pipeline built with MobileNetV2 & MediaPipe")
+
+col_video, col_metrics = st.columns([3, 1])
+
+with col_video:
+    st.subheader("Live Video Feed")
+    status_banner = st.empty()
+    frame_window = st.image([])
+
+with col_metrics:
+    st.subheader("Results & Metrics")
+    metric_status = st.empty()
+    metric_conf = st.empty()
