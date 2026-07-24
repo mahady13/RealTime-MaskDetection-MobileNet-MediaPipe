@@ -111,3 +111,16 @@ if run_cam:
                         conf, pred_idx = torch.max(probabilities, dim=1)
                         confidence = conf.item()
                         pred = pred_idx.item()
+
+                    raw_label = label_encoder.inverse_transform([pred])[0]
+                    if raw_label == 'with_mask' and confidence < 0.80:
+                        raw_label = 'without_mask'
+                    prediction_history.append(raw_label)
+                    smoothed_label = Counter(prediction_history).most_common(1)[0][0]
+
+                    latest_label = smoothed_label
+                    latest_conf = confidence
+
+                    color = (0, 255, 0) if smoothed_label == 'with_mask' else (0, 0, 255)
+                    text='Mask Found' if smoothed_label == 'with_mask' else 'Mask Not Found'
+                    display_text = f"{text} ({confidence * 100:.1f}%)"
