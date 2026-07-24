@@ -3,9 +3,8 @@
 torch
 torchvision
 streamlit
-opencv-python-headless
+opencv-python
 mediapipe
 joblib
 scikit-learn
 pillow
-streamlit-webrtc
