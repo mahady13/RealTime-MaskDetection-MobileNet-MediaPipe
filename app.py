@@ -32,3 +32,28 @@ with st.sidebar:
     with col2:
         stop_cam = st.button("⏹️ STOP", use_container_width=True)
     st.markdown("---")
+
+    st.header("Developer Information")
+    st.markdown(
+        "***Mohiuddin Mahady*** \n \nBSc in CSE from Mymensingh Engineering College(Affiliated with Dhaka University)")
+    col3, col4 = st.columns([1, 1])
+    with col3:
+        st.link_button("LinkedIn", "https://www.linkedin.com/in/mohiuddin-mahady/", use_container_width=True)
+    with col4:
+        st.link_button("Github", 'https://www.github.com/mahady13', use_container_width=True)
+    st.markdown("---")
+
+    st.subheader("⚠️ System Limitations")
+    st.info("""
+        **🔹 Lighting Conditions**  
+        Accuracy may drop in low-light or extreme backlights.
+
+        **🔹 Mask Patterns & Designs**  
+        Optimized for solid masks. Complex patterned masks may cause misclassifications.
+
+        **🔹 Distance & Angle**  
+        Faces too far or turned at extreme sideways might not be detected.
+
+        **🔹 Partial Occlusion**  
+        Hands,glasses or hair partially covering the face can affect confidence scores.
+        """)
