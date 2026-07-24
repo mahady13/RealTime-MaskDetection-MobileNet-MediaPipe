@@ -22,3 +22,13 @@ st.set_page_config(
     page_icon="😷",
     layout="wide"
 )
+
+#sidebar with my information+camera switch
+with st.sidebar:
+    st.title("⚙️ Control Panel")
+    col1, col2 = st.columns(2)
+    with col1:
+        run_cam = st.button("▶️ START", use_container_width=True, type="primary")
+    with col2:
+        stop_cam = st.button("⏹️ STOP", use_container_width=True)
+    st.markdown("---")
