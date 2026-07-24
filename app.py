@@ -130,20 +130,20 @@ if run_cam:
                         cv2.FONT_HERSHEY_TRIPLEX, 0.7, color, 2
                     )
 
-                if latest_label == 'with_mask':
-                    status_banner.success("✅ SAFE – Mask Detected")
-                elif latest_label == 'without_mask':
-                    status_banner.error("🚨 WARNING – No Mask Detected")
-                else:
-                    status_banner.info("🔍 Searching for faces...")
-                label = 'Mask Detected' if latest_label == 'with_mask' else 'No Mask Detected'
-                metric_status.metric(label="Status", value=label)
-                metric_conf.metric(label="Confidence", value=f"{latest_conf * 100:.1f}%")
+        if latest_label == 'with_mask':
+            status_banner.success("✅ SAFE – Mask Detected")
+        elif latest_label == 'without_mask':
+           status_banner.error("🚨 WARNING – No Mask Detected")
+        else:
+           status_banner.info("🔍 Searching for faces...")
+        label = 'Mask Detected' if latest_label == 'with_mask' else 'No Mask Detected'
+        metric_status.metric(label="Status", value=label)
+        metric_conf.metric(label="Confidence", value=f"{latest_conf * 100:.1f}%")
 
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame_window.image(frame_rgb, channels="RGB", use_container_width=True)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_window.image(frame_rgb, channels="RGB", use_container_width=True)
 
-            cap.release()
+    cap.release()
 
 elif stop_cam:
     with col_video:
