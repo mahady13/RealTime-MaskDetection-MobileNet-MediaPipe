@@ -124,3 +124,13 @@ if run_cam:
                     color = (0, 255, 0) if smoothed_label == 'with_mask' else (0, 0, 255)
                     text='Mask Found' if smoothed_label == 'with_mask' else 'Mask Not Found'
                     display_text = f"{text} ({confidence * 100:.1f}%)"
+                    cv2.rectangle(frame, (xmin, ymin), (xmin + box_w, ymin + box_h), color, 3)
+                    cv2.putText(
+                        frame, display_text, (xmin, max(20, ymin - 10)),
+                        cv2.FONT_HERSHEY_TRIPLEX, 0.7, color, 2
+                    )
+
+                if latest_label == 'with_mask':
+                    status_banner.success("✅ SAFE – Mask Detected")
+                elif latest_label == 'without_mask':
+                    status_banner.error("🚨 WARNING – No Mask Detected")
