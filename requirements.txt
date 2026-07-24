@@ -1,9 +1,8 @@
 torch
 streamlit
 torchvision
-opencv-python
+opencv-python-headless
 mediapipe
 joblib
 scikit-learn
-streamlit
 pillow
