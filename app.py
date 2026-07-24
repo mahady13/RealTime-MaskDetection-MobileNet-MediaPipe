@@ -11,3 +11,14 @@ from PIL import Image
 from torchvision.transforms import transforms
 from collections import deque, Counter
 from assets import load_asset
+
+prediction_history = deque(maxlen=25)
+
+#model & transform loading
+device,label_encoder,detector,transform,model=load_asset()
+
+st.set_page_config(
+    page_title="RealTime-MaskDetection-MobileNet-MediaPipe",
+    page_icon="😷",
+    layout="wide"
+)
