@@ -1,9 +1,11 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 
+opencv-python-headless
+opencv-contrib-python-headless
+
 torch
 torchvision
 streamlit
-opencv-python-headless
 mediapipe
 joblib
 scikit-learn
