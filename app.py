@@ -5,6 +5,7 @@ import streamlit as st
 import joblib
 import mediapipe as mp
 import cv2
+import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from PIL import Image
@@ -14,8 +15,8 @@ from assets import load_asset
 
 prediction_history = deque(maxlen=25)
 
-#model & transform loading
-device,label_encoder,detector,transform,model=load_asset()
+# model & transform loading
+device, label_encoder, detector, transform, model = load_asset()
 
 st.set_page_config(
     page_title="RealTime-MaskDetection-MobileNet-MediaPipe",
@@ -23,7 +24,7 @@ st.set_page_config(
     layout="wide"
 )
 
-#sidebar with my information+camera switch
+# sidebar with my information+camera switch
 with st.sidebar:
     st.title("⚙️ Control Panel")
     col1, col2 = st.columns(2)
@@ -57,7 +58,8 @@ with st.sidebar:
         **🔹 Partial Occlusion**  
         Hands,glasses or hair partially covering the face can affect confidence scores.
         """)
-#app ui started
+
+# app ui started
 st.title("😷 Real-Time AI Face Mask Detection")
 st.caption("Computer Vision pipeline built with MobileNetV2 & MediaPipe")
 
@@ -66,7 +68,7 @@ col_video, col_metrics = st.columns([3, 1])
 with col_video:
     st.subheader("Live Video Feed")
     status_banner = st.empty()
-    frame_window = st.image([])
+    frame_window = st.empty()
 
 with col_metrics:
     st.subheader("Results & Metrics")
@@ -74,18 +76,17 @@ with col_metrics:
     metric_conf = st.empty()
 
 if run_cam:
-    cap=cv2.VideoCapture(0)
+    img_file_buffer = frame_window.camera_input("Take a snapshot or keep stream active")
 
-    while cap.isOpened() and run_cam:
-        ret,frame=cap.read()
-        if not ret:
-            st.error("Failed to capture video feed.")
-            break
+    if img_file_buffer is not None:
+        bytes_data = img_file_buffer.getvalue()
+        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
-        h,w,_=frame.shape
-        rgb_frame=cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-        mp_img=mp.Image(image_format=mp.ImageFormat.SRGB,data=rgb_frame)
-        detection_results=detector.detect(mp_img)
+        frame = cv2_img
+        h, w, _ = frame.shape
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        detection_results = detector.detect(mp_img)
 
         latest_label = "Searching..."
         latest_conf = 0.0
@@ -122,7 +123,7 @@ if run_cam:
                     latest_conf = confidence
 
                     color = (0, 255, 0) if smoothed_label == 'with_mask' else (0, 0, 255)
-                    text='Mask Found' if smoothed_label == 'with_mask' else 'Mask Not Found'
+                    text = 'Mask Found' if smoothed_label == 'with_mask' else 'Mask Not Found'
                     display_text = f"{text} ({confidence * 100:.1f}%)"
                     cv2.rectangle(frame, (xmin, ymin), (xmin + box_w, ymin + box_h), color, 3)
                     cv2.putText(
@@ -133,19 +134,16 @@ if run_cam:
         if latest_label == 'with_mask':
             status_banner.success("✅ SAFE – Mask Detected")
         elif latest_label == 'without_mask':
-           status_banner.error("🚨 WARNING – No Mask Detected")
+            status_banner.error("🚨 WARNING – No Mask Detected")
         else:
-           status_banner.info("🔍 Searching for faces...")
+            status_banner.info("🔍 Searching for faces...")
         label = 'Mask Detected' if latest_label == 'with_mask' else 'No Mask Detected'
         metric_status.metric(label="Status", value=label)
         metric_conf.metric(label="Confidence", value=f"{latest_conf * 100:.1f}%")
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_window.image(frame_rgb, channels="RGB", use_container_width=True)
-
-    cap.release()
+        st.image(frame_rgb, channels="RGB", use_container_width=True)
 
 elif stop_cam:
     with col_video:
         st.info("Camera is turned off. Please turn on the 'Start' button from sidebar to start.")
-    cv2.destroyAllWindows()
