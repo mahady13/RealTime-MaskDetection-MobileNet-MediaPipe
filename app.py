@@ -98,3 +98,16 @@ if run_cam:
                 ymin = max(0, bbox.origin_y)
                 box_w = min(w - xmin, bbox.width)
                 box_h = min(h - ymin, bbox.height)
+                if box_w > 0 and box_h > 0:
+                    crop_ymin = ymin
+                    crop_ymax = min(h, ymin + int(box_h * 0.90))
+
+                    face_crop = rgb_frame[crop_ymin:crop_ymax, xmin:xmin + box_w]
+                    pil_img = Image.fromarray(face_crop)
+                    tensor_input = transform(pil_img).unsqueeze(0).to(device)
+                    with torch.inference_mode():
+                        output = model(tensor_input)
+                        probabilities = torch.softmax(output, dim=1)
+                        conf, pred_idx = torch.max(probabilities, dim=1)
+                        confidence = conf.item()
+                        pred = pred_idx.item()
