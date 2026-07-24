@@ -72,3 +72,29 @@ with col_metrics:
     st.subheader("Results & Metrics")
     metric_status = st.empty()
     metric_conf = st.empty()
+
+if run_cam:
+    cap=cv2.VideoCapture(0)
+
+    while cap.isOpened() and run_cam:
+        ret,frame=cap.read()
+        if not ret:
+            st.error("Failed to capture video feed.")
+            break
+
+        h,w,_=frame.shape
+        rgb_frame=cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
+        mp_img=mp.Image(image_format=mp.ImageFormat.SRGB,data=rgb_frame)
+        detection_results=detector.detect(mp_img)
+
+        latest_label = "Searching..."
+        latest_conf = 0.0
+
+        if detection_results.detections:
+            for detection in detection_results.detections:
+                bbox = detection.bounding_box
+
+                xmin = max(0, bbox.origin_x)
+                ymin = max(0, bbox.origin_y)
+                box_w = min(w - xmin, bbox.width)
+                box_h = min(h - ymin, bbox.height)
