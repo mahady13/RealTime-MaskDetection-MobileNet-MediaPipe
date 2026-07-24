@@ -6,8 +6,8 @@ import joblib
 import mediapipe as mp
 import cv2
 import numpy as np
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
+import av
+from streamlit_webrtc import webrtc_streamer, VideoHTMLAttributes, RTCConfiguration
 from PIL import Image
 from torchvision.transforms import transforms
 from collections import deque, Counter
@@ -15,7 +15,7 @@ from assets import load_asset
 
 prediction_history = deque(maxlen=25)
 
-# model & transform loading
+# Model & transform loading
 device, label_encoder, detector, transform, model = load_asset()
 
 st.set_page_config(
@@ -24,16 +24,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# sidebar with my information+camera switch
+# Sidebar with developer information
 with st.sidebar:
     st.title("⚙️ Control Panel")
-    col1, col2 = st.columns(2)
-    with col1:
-        run_cam = st.button("▶️ START", use_container_width=True, type="primary")
-    with col2:
-        stop_cam = st.button("⏹️ STOP", use_container_width=True)
-    st.markdown("---")
-
     st.header("Developer Information")
     st.markdown(
         "***Mohiuddin Mahady*** \n \nBSc in CSE from Mymensingh Engineering College(Affiliated with Dhaka University)")
@@ -56,94 +49,76 @@ with st.sidebar:
         Faces too far or turned at extreme sideways might not be detected.
 
         **🔹 Partial Occlusion**  
-        Hands,glasses or hair partially covering the face can affect confidence scores.
+        Hands, glasses or hair partially covering the face can affect confidence scores.
         """)
 
-# app ui started
+# App UI started
 st.title("😷 Real-Time AI Face Mask Detection")
 st.caption("Computer Vision pipeline built with MobileNetV2 & MediaPipe")
+
+
+# Callback function for processing each frame continuously in WebRTC
+def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
+    img = frame.to_ndarray(format="bgr24")
+    h, w, _ = img.shape
+
+    rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+    detection_results = detector.detect(mp_img)
+
+    if detection_results.detections:
+        for detection in detection_results.detections:
+            bbox = detection.bounding_box
+
+            xmin = max(0, bbox.origin_x)
+            ymin = max(0, bbox.origin_y)
+            box_w = min(w - xmin, bbox.width)
+            box_h = min(h - ymin, bbox.height)
+
+            if box_w > 0 and box_h > 0:
+                crop_ymin = ymin
+                crop_ymax = min(h, ymin + int(box_h * 0.90))
+
+                face_crop = rgb_frame[crop_ymin:crop_ymax, xmin:xmin + box_w]
+                pil_img = Image.fromarray(face_crop)
+                tensor_input = transform(pil_img).unsqueeze(0).to(device)
+
+                with torch.inference_mode():
+                    output = model(tensor_input)
+                    probabilities = torch.softmax(output, dim=1)
+                    conf, pred_idx = torch.max(probabilities, dim=1)
+                    confidence = conf.item()
+                    pred = pred_idx.item()
+
+                raw_label = label_encoder.inverse_transform([pred])[0]
+                if raw_label == 'with_mask' and confidence < 0.80:
+                    raw_label = 'without_mask'
+                prediction_history.append(raw_label)
+                smoothed_label = Counter(prediction_history).most_common(1)[0][0]
+
+                color = (0, 255, 0) if smoothed_label == 'with_mask' else (0, 0, 255)
+                text = 'Mask Found' if smoothed_label == 'with_mask' else 'Mask Not Found'
+                display_text = f"{text} ({confidence * 100:.1f}%)"
+
+                cv2.rectangle(img, (xmin, ymin), (xmin + box_w, ymin + box_h), color, 3)
+                cv2.putText(
+                    img, display_text, (xmin, max(20, ymin - 10)),
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.7, color, 2
+                )
+
+    return av.VideoFrame.from_ndarray(img, format="bgr24")
+
 
 col_video, col_metrics = st.columns([3, 1])
 
 with col_video:
     st.subheader("Live Video Feed")
-    status_banner = st.empty()
-    frame_window = st.empty()
-
-with col_metrics:
-    st.subheader("Results & Metrics")
-    metric_status = st.empty()
-    metric_conf = st.empty()
-
-if run_cam:
-    img_file_buffer = frame_window.camera_input("Take a snapshot or keep stream active")
-
-    if img_file_buffer is not None:
-        bytes_data = img_file_buffer.getvalue()
-        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-
-        frame = cv2_img
-        h, w, _ = frame.shape
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-        detection_results = detector.detect(mp_img)
-
-        latest_label = "Searching..."
-        latest_conf = 0.0
-
-        if detection_results.detections:
-            for detection in detection_results.detections:
-                bbox = detection.bounding_box
-
-                xmin = max(0, bbox.origin_x)
-                ymin = max(0, bbox.origin_y)
-                box_w = min(w - xmin, bbox.width)
-                box_h = min(h - ymin, bbox.height)
-                if box_w > 0 and box_h > 0:
-                    crop_ymin = ymin
-                    crop_ymax = min(h, ymin + int(box_h * 0.90))
-
-                    face_crop = rgb_frame[crop_ymin:crop_ymax, xmin:xmin + box_w]
-                    pil_img = Image.fromarray(face_crop)
-                    tensor_input = transform(pil_img).unsqueeze(0).to(device)
-                    with torch.inference_mode():
-                        output = model(tensor_input)
-                        probabilities = torch.softmax(output, dim=1)
-                        conf, pred_idx = torch.max(probabilities, dim=1)
-                        confidence = conf.item()
-                        pred = pred_idx.item()
-
-                    raw_label = label_encoder.inverse_transform([pred])[0]
-                    if raw_label == 'with_mask' and confidence < 0.80:
-                        raw_label = 'without_mask'
-                    prediction_history.append(raw_label)
-                    smoothed_label = Counter(prediction_history).most_common(1)[0][0]
-
-                    latest_label = smoothed_label
-                    latest_conf = confidence
-
-                    color = (0, 255, 0) if smoothed_label == 'with_mask' else (0, 0, 255)
-                    text = 'Mask Found' if smoothed_label == 'with_mask' else 'Mask Not Found'
-                    display_text = f"{text} ({confidence * 100:.1f}%)"
-                    cv2.rectangle(frame, (xmin, ymin), (xmin + box_w, ymin + box_h), color, 3)
-                    cv2.putText(
-                        frame, display_text, (xmin, max(20, ymin - 10)),
-                        cv2.FONT_HERSHEY_TRIPLEX, 0.7, color, 2
-                    )
-
-        if latest_label == 'with_mask':
-            status_banner.success("✅ SAFE – Mask Detected")
-        elif latest_label == 'without_mask':
-            status_banner.error("🚨 WARNING – No Mask Detected")
-        else:
-            status_banner.info("🔍 Searching for faces...")
-        label = 'Mask Detected' if latest_label == 'with_mask' else 'No Mask Detected'
-        metric_status.metric(label="Status", value=label)
-        metric_conf.metric(label="Confidence", value=f"{latest_conf * 100:.1f}%")
-
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, channels="RGB", use_container_width=True)
-
-elif stop_cam:
-    with col_video:
-        st.info("Camera is turned off. Please turn on the 'Start' button from sidebar to start.")
+    webrtc_streamer(
+        key="mask-detection",
+        video_frame_callback=video_frame_callback,
+        rtc_configuration=RTCConfiguration(
+            {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+        ),
+        media_stream_constraints={"video": True, "audio": False},
+        async_processing=True,
+    )

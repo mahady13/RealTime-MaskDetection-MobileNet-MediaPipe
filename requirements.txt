@@ -8,3 +8,4 @@ mediapipe
 joblib
 scikit-learn
 pillow
+streamlit-webrtc
